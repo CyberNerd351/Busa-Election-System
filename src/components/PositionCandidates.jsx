@@ -42,9 +42,18 @@ const PositionCandidates = ({ user, onVote }) => {
     }
   };
 
+  const handleCandidateClick = (candidate) => {
+    // Toggle selection
+    if (selectedCandidate?.id === candidate.id) {
+      setSelectedCandidate(null);
+    } else {
+      setSelectedCandidate(candidate);
+    }
+  };
+
   const handleVote = async () => {
     if (!selectedCandidate) {
-      setMessage('Please select a candidate');
+      setMessage('Please select a candidate.');
       return;
     }
 
@@ -57,13 +66,12 @@ const PositionCandidates = ({ user, onVote }) => {
 
       if (data.success) {
         setMessage('Vote recorded successfully!');
-        setTimeout(() => {
-          navigate('/voting');
-        }, 2000);
+        setTimeout(() => navigate('/voting'), 2000);
       } else {
-        setMessage(data.message || 'Failed to record vote');
+        setMessage(data.message || 'Failed to record vote.');
       }
     } catch (error) {
+      console.error(error);
       setMessage('Network error. Please try again.');
     } finally {
       setSubmitting(false);
@@ -72,11 +80,9 @@ const PositionCandidates = ({ user, onVote }) => {
 
   if (loading) {
     return (
-      <div className="container mt-4">
-        <div className="loading-spinner">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
+      <div className="container mt-4 text-center">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
         </div>
       </div>
     );
@@ -97,45 +103,69 @@ const PositionCandidates = ({ user, onVote }) => {
 
           {/* Message */}
           {message && (
-            <div className={`alert ${message.includes('successfully') ? 'alert-success' : 'alert-danger'} alert-custom`}>
+            <div
+              className={`alert ${
+                message.includes('successfully') ? 'alert-success' : 'alert-danger'
+              }`}
+            >
               {message}
             </div>
           )}
 
           {/* Candidates Grid */}
           <div className="row">
-            {candidates.map(candidate => (
+            {candidates.map((candidate) => (
               <div key={candidate.id} className="col-md-6 col-lg-4 mb-4">
-                <div 
-                  className={`card candidate-card ${selectedCandidate?.id === candidate.id ? 'border-primary' : ''}`}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setSelectedCandidate(candidate)}
+                <div
+                  className={`card candidate-card ${
+                    selectedCandidate?.id === candidate.id ? 'border-primary shadow' : ''
+                  }`}
+                  style={{
+                    cursor: 'pointer',
+                    transition: '0.3s',
+                    backgroundColor:
+                      selectedCandidate?.id === candidate.id ? '#e7f1ff' : 'white',
+                  }}
+                  onClick={() => handleCandidateClick(candidate)}
                 >
                   <div className="card-body text-center">
-                    {candidate.image ? (
-                      <img 
-                        src={`https://busa1.pythonanywhere.com/static/images/${candidate.image}`}
+                    {/* Image */}
+                    <div
+                      className="candidate-image-wrapper mb-3"
+                      style={{
+                        width: '100%',
+                        height: '220px',
+                        overflow: 'hidden',
+                        borderRadius: '8px',
+                        backgroundColor: '#f8f9fa',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <img
+                        src={
+                          candidate.image
+                            ? `https://busa1.pythonanywhere.com/static/images/${candidate.image}`
+                            : 'https://via.placeholder.com/300x220?text=No+Image'
+                        }
                         alt={candidate.name}
-                        className="candidate-image"
-                        onError={(e) => {
-                          e.target.src = 'https://via.placeholder.com/120?text=No+Image';
+                        onError={(e) =>
+                          (e.target.src = 'https://via.placeholder.com/300x220?text=No+Image')
+                        }
+                        style={{
+                          maxWidth: '100%',
+                          maxHeight: '100%',
+                          objectFit: 'contain',
                         }}
                       />
-                    ) : (
-                      <div 
-                        className="candidate-image d-flex align-items-center justify-content-center bg-light text-muted"
-                        style={{ fontSize: '3rem' }}
-                      >
-                        👤
-                      </div>
-                    )}
-                    
-                    <h5 className="card-title">{candidate.name}</h5>
-                    
+                    </div>
+
+                    {/* Candidate Info */}
+                    <h5 className="card-title mb-2">{candidate.name}</h5>
+
                     {selectedCandidate?.id === candidate.id && (
-                      <div className="mt-2">
-                        <span className="badge bg-primary">Selected ✓</span>
-                      </div>
+                      <span className="badge bg-primary">Selected ✓</span>
                     )}
                   </div>
                 </div>
@@ -152,15 +182,12 @@ const PositionCandidates = ({ user, onVote }) => {
 
           {/* Action Buttons */}
           <div className="text-center mt-4">
-            <button 
-              className="btn btn-secondary me-2"
-              onClick={() => navigate('/voting')}
-            >
+            <button className="btn btn-secondary me-2" onClick={() => navigate('/voting')}>
               ← Back to Voting
             </button>
-            
+
             {candidates.length > 0 && (
-              <button 
+              <button
                 className="btn btn-primary"
                 onClick={handleVote}
                 disabled={!selectedCandidate || submitting}

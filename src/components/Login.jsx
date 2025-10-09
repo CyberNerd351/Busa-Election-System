@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap-icons/font/bootstrap-icons.css';
+import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 
 const Login = ({ onLogin }) => {
   const [email, setEmail] = useState('');
@@ -21,7 +24,6 @@ const Login = ({ onLogin }) => {
 
       if (data.success) {
         onLogin(data.user);
-        // Redirect to voting page after successful login
         navigate('/home');
       } else {
         setError(data.message || 'Login failed');
@@ -33,117 +35,104 @@ const Login = ({ onLogin }) => {
     }
   };
 
-  const toggleShowPassword = () => {
-    setShowPassword(!showPassword);
-  };
-
   return (
-    <div className="container-fluid vh-100 d-flex align-items-center justify-content-center">
-      <div className="row w-100">
-        <div className="col-md-6 col-lg-4 mx-auto">
-          <div className="card shadow-lg">
-            <div className="card-body p-5">
-              <div className="text-center mb-4">
-                <h2 className="card-title fw-bold">BUSA Election System</h2>
-                <p className="text-muted">Sign in to cast your vote</p>
-              </div>
+    <div 
+      className="vh-100 d-flex align-items-center justify-content-center bg-gradient" 
+      style={{
+        background: 'linear-gradient(135deg, #0d6efd, #6610f2)',
+      }}
+    >
+      <div className="card shadow-lg border-0 rounded-4" style={{ width: '100%', maxWidth: '420px' }}>
+        <div className="card-body p-5">
+          {/* Header */}
+          <div className="text-center mb-4">
+            <div
+              className="d-flex justify-content-center align-items-center mb-3 bg-primary text-white rounded-circle"
+              style={{ width: 70, height: 70, margin: '0 auto', fontSize: '2rem' }}
+            >
+              🗳️
+            </div>
+            <h3 className="fw-bold text-dark mb-1">BUSA Election System</h3>
+            <p className="text-muted mb-0">Sign in to cast your vote securely</p>
+          </div>
 
-              {error && (
-                <div className="alert alert-danger alert-custom">
-                  {error}
-                </div>
-              )}
+          {/* Error Message */}
+          {error && <div className="alert alert-danger text-center">{error}</div>}
 
-              <form onSubmit={handleSubmit}>
-                <div className="mb-3">
-                  <label htmlFor="email" className="form-label">
-                    <i className="bi bi-envelope me-2"></i>
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    className="form-control"
-                    id="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email address"
-                    required
-                  />
-                </div>
+          {/* Form */}
+          <form onSubmit={handleSubmit}>
+            <div className="mb-3">
+              <label htmlFor="email" className="form-label fw-semibold">
+                <i className="bi bi-envelope me-2"></i>Email Address
+              </label>
+              <input
+                type="email"
+                id="email"
+                className="form-control"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
 
-                <div className="mb-4">
-                  <label htmlFor="password" className="form-label">
-                    <i className="bi bi-lock me-2"></i>
-                    Password
-                  </label>
-                  <div className="input-group">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      className="form-control"
-                      id="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password"
-                      required
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-outline-secondary"
-                      onClick={toggleShowPassword}
-                    >
-                      <i className={`bi bi-eye${showPassword ? '-slash' : ''}`}></i>
-                    </button>
-                  </div>
-                  <div className="form-text">
-                    <small>
-                      <button
-                        type="button"
-                        className="btn btn-link p-0 text-decoration-none"
-                        onClick={toggleShowPassword}
-                      >
-                        {showPassword ? 'Hide' : 'Show'} password
-                      </button>
-                    </small>
-                  </div>
-                </div>
-
-                <button 
-                  type="submit" 
-                  className="btn btn-primary w-100 py-2"
-                  disabled={loading || !email || !password}
+            <div className="mb-4">
+              <label htmlFor="password" className="form-label fw-semibold">
+                <i className="bi bi-lock me-2"></i>Password
+              </label>
+              <div className="input-group">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  id="password"
+                  className="form-control"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={() => setShowPassword(!showPassword)}
                 >
-                  {loading ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2"></span>
-                      Signing in...
-                    </>
-                  ) : (
-                    <>
-                      <i className="bi bi-box-arrow-in-right me-2"></i>
-                      Sign In & Vote
-                    </>
-                  )}
+                  <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
                 </button>
-              </form>
-
-              <div className="text-center mt-4">
-                <small className="text-muted">
-                  <i className="bi bi-info-circle me-1"></i>
-                  Don't have an account? Contact admin for registration.
-                </small>
-              </div>
-
-              {/* Quick instructions */}
-              <div className="mt-4 p-3 bg-light rounded">
-                <h6 className="mb-2">
-                  <i className="bi bi-lightbulb me-2"></i>
-                  Voting Instructions:
-                </h6>
-                <small className="text-muted">
-                  After signing in, you'll be directed to the voting page where you can cast your vote for all positions.
-                </small>
               </div>
             </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary w-100 py-2 fw-semibold"
+              disabled={loading || !email || !password}
+            >
+              {loading ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2"></span>
+                  Signing In...
+                </>
+              ) : (
+                <>
+                  <i className="bi bi-box-arrow-in-right me-2"></i>Sign In & Vote
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Footer Section */}
+          <div className="text-center mt-4">
+            <small className="text-muted d-block mb-2">
+              <i className="bi bi-info-circle me-1"></i>
+              Don't have an account? Contact admin for registration.
+            </small>
+          </div>
+
+          <div className="bg-light rounded-3 p-3 mt-3">
+            <h6 className="mb-2 fw-bold">
+              <i className="bi bi-lightbulb me-2 text-warning"></i>Voting Instructions
+            </h6>
+            <small className="text-muted">
+              After signing in, you’ll be redirected to the voting page where you can cast your votes for available positions.
+            </small>
           </div>
         </div>
       </div>

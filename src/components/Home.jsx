@@ -1,23 +1,32 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import './Home.css';
 
 const Home = ({ user, electionStatus, timeRemaining }) => {
+  const navigate = useNavigate();
+
+  // Redirect to login if user not signed in
+  useEffect(() => {
+    if (!user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
+
   return (
     <div className="home-container">
       <div className="container">
         {/* Welcome Section */}
-        <div className="welcome-section">
-          <h1 className="welcome-title">
-            Welcome to BUSA Election System
-          </h1>
+        <div className="welcome-section text-center">
+          <h1 className="welcome-title">Welcome to BUSA Election System</h1>
           <p className="welcome-subtitle">
-            {user ? `Hello ${user.name || user.email}, exercise your democratic right to vote!` : 'Please sign in to participate in the election'}
+            {user
+              ? `Hello ${user.name || user.email}, exercise your democratic right to vote!`
+              : 'Please sign in to participate in the election.'}
           </p>
-          
+
           {/* Election Status */}
           {electionStatus && (
-            <div className="election-status">
+            <div className="election-status mt-3">
               <h4>Election Status</h4>
               <p className="mb-2">{electionStatus.message}</p>
               {timeRemaining && (
@@ -30,16 +39,29 @@ const Home = ({ user, electionStatus, timeRemaining }) => {
 
           {/* Quick Actions */}
           <div className="row mt-4">
+            {/* Show Start Voting button only if user is logged in */}
             <div className="col-md-4 mb-3">
-              <Link to="/voting" className="btn btn-primary w-100 py-3">
-                🗳️ Start Voting
-              </Link>
+              {user ? (
+                <Link to="/voting" className="btn btn-primary w-100 py-3">
+                  🗳️ Start Voting
+                </Link>
+              ) : (
+                <button
+                  className="btn btn-secondary w-100 py-3"
+                  onClick={() => navigate('/')}
+                  disabled
+                >
+                  🔒 Login Required
+                </button>
+              )}
             </div>
+
             <div className="col-md-4 mb-3">
               <Link to="/results" className="btn btn-success w-100 py-3">
                 📊 View Results
               </Link>
             </div>
+
             <div className="col-md-4 mb-3">
               <Link to="/faq" className="btn btn-info w-100 py-3 text-white">
                 ❓ FAQ & Help
@@ -49,7 +71,7 @@ const Home = ({ user, electionStatus, timeRemaining }) => {
         </div>
 
         {/* Features Grid */}
-        <div className="features-grid">
+        <div className="features-grid mt-5">
           <div className="feature-card">
             <div className="feature-icon">🔒</div>
             <h4>Secure Voting</h4>
@@ -71,7 +93,7 @@ const Home = ({ user, electionStatus, timeRemaining }) => {
           <div className="feature-card">
             <div className="feature-icon">🛡️</div>
             <h4>Admin Managed</h4>
-            <p>Professional administration ensures fair and transparent election process.</p>
+            <p>Professional administration ensures a fair and transparent election process.</p>
           </div>
         </div>
 

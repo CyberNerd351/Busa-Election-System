@@ -13,8 +13,9 @@ const Navbar = ({ user, onLogout }) => {
     navigate('/');
   };
 
-  // Hide Navbar on login page
-  if (location.pathname === '/') {
+  // Show navbar only on Home and Voting pages
+  const showNavbar = location.pathname === '/home' || location.pathname === '/voting';
+  if (!showNavbar) {
     return null;
   }
 

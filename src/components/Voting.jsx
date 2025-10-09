@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../utils';
 import './Voting.css';
 
@@ -18,15 +18,19 @@ const Voting = ({ user }) => {
   const [positions, setPositions] = useState([]);
   const [userVotes, setUserVotes] = useState({});
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
+  // --- Redirect if user not logged in ---
   useEffect(() => {
-    loadUserVotes();
-  }, [user]);
+    if (!user) {
+      navigate('/');
+    } else {
+      loadUserVotes();
+    }
+  }, [user, navigate]);
 
   const loadUserVotes = async () => {
     try {
-      // In a real app, you'd fetch user's previous votes
-      // For now, we'll initialize empty
       const votes = {};
       positionsList.forEach(pos => {
         votes[pos.id] = null;
@@ -49,12 +53,9 @@ const Voting = ({ user }) => {
   if (loading) {
     return (
       <div className="voting-container">
-        <div className="container">
-          <div className="loading-spinner">
-            <div className="spinner-border text-primary" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-          </div>
+        <div className="container text-center py-5">
+          <div className="spinner-border text-primary" role="status"></div>
+          <p className="mt-3">Loading voting dashboard...</p>
         </div>
       </div>
     );
@@ -63,7 +64,7 @@ const Voting = ({ user }) => {
   return (
     <div className="voting-container">
       <div className="container">
-        <div className="card">
+        <div className="card shadow-sm">
           <div className="card-body">
             <h2 className="card-title text-center mb-4">Voting Dashboard</h2>
             
@@ -104,14 +105,14 @@ const Voting = ({ user }) => {
               ))}
             </div>
 
-            {/* Action Buttons */}
+            {/* Completion Message */}
             {getVotedCount() === totalPositions && (
               <div className="text-center mt-4">
                 <div className="alert alert-success alert-custom">
                   <h5>🎉 All Positions Voted!</h5>
                   <p className="mb-0">
-                    Thank you for participating in the BUSA1 election. 
-                    Results will be available 30 minutes after the election ends.
+                    Thank you for participating in the BUSA Election. 
+                    Results will be available shortly after the election ends.
                   </p>
                 </div>
               </div>
