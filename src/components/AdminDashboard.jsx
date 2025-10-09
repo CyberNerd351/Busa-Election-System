@@ -322,6 +322,30 @@ const AdminDashboard = () => {
                 <div className="stat-label">Total Votes</div>
               </div>
             </div>
+
+            {/* ✅ Added Feature: Total Votes Per Candidate */}
+            <div className="mt-5">
+              <h4>Total Votes per Candidate</h4>
+              <table className="table table-dark table-striped mt-3">
+                <thead>
+                  <tr>
+                    <th>Candidate Name</th>
+                    <th>Position</th>
+                    <th>Total Votes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {candidates.map((candidate) => (
+                    <tr key={candidate.id}>
+                      <td>{candidate.name}</td>
+                      <td>{candidate.position_name}</td>
+                      <td>{candidate.votes || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* ✅ End of Added Feature */}
           </div>
         )}
 
