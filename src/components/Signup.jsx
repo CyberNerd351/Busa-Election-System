@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../utils';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -23,12 +23,35 @@ const Signup = () => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [alreadySignedUp, setAlreadySignedUp] = useState(false);
 
-  // ✅ Hide Navbar when on Signup page
-  if (location.pathname === '/signup') {
-    document.querySelector('nav')?.classList.add('d-none');
-  } else {
-    document.querySelector('nav')?.classList.remove('d-none');
-  }
+  // Generate a unique device ID per browser using localStorage
+  const getDeviceId = () => {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      deviceId = `device_${Math.random().toString(36).substring(2, 12)}`;
+      localStorage.setItem('deviceId', deviceId);
+    }
+    return deviceId;
+  };
+
+  const deviceId = getDeviceId();
+
+  // Check if this email+device combination has already signed up
+  useEffect(() => {
+    const signedUpUsers = JSON.parse(localStorage.getItem('signedUpUsers') || '[]');
+    const alreadyExists = signedUpUsers.some(
+      (user) => user.email === formData.email && user.deviceId === deviceId
+    );
+    if (alreadyExists) setAlreadySignedUp(true);
+  }, [formData.email, deviceId]);
+
+  // Hide Navbar on Signup page
+  useEffect(() => {
+    if (location.pathname === '/signup') {
+      document.querySelector('nav')?.classList.add('d-none');
+    } else {
+      document.querySelector('nav')?.classList.remove('d-none');
+    }
+  }, [location.pathname]);
 
   const handleChange = (e) => {
     setFormData({
@@ -43,7 +66,7 @@ const Signup = () => {
     setSuccess(false);
 
     if (alreadySignedUp) {
-      setMessage('You have already registered. Please wait for admin approval.');
+      setMessage('You have already registered from this device.');
       return;
     }
 
@@ -67,9 +90,15 @@ const Signup = () => {
         setSuccess(true);
         setMessage('');
         setAlreadySignedUp(true);
+
+        // Save the email+device to localStorage
+        const signedUpUsers = JSON.parse(localStorage.getItem('signedUpUsers') || '[]');
+        signedUpUsers.push({ email: formData.email, deviceId });
+        localStorage.setItem('signedUpUsers', JSON.stringify(signedUpUsers));
+
         setFormData({ name: '', email: '', password: '', confirmPassword: '' });
 
-        // Delay navigation for user to read thank-you message
+        // Delay navigation so user can see the thank you message
         setTimeout(() => navigate('/'), 3000);
       } else {
         setMessage(data.message || 'Failed to create account.');
@@ -84,14 +113,9 @@ const Signup = () => {
   return (
     <div
       className="vh-100 d-flex align-items-center justify-content-center bg-gradient"
-      style={{
-        background: 'linear-gradient(135deg, #6610f2, #0d6efd)',
-      }}
+      style={{ background: 'linear-gradient(135deg, #6610f2, #0d6efd)' }}
     >
-      <div
-        className="card shadow-lg border-0 rounded-4"
-        style={{ width: '100%', maxWidth: '450px' }}
-      >
+      <div className="card shadow-lg border-0 rounded-4" style={{ width: '100%', maxWidth: '450px' }}>
         <div className="card-body p-5">
           {/* Header */}
           <div className="text-center mb-4">
@@ -105,7 +129,7 @@ const Signup = () => {
             <p className="text-muted mb-0">Join the BUSA Election System</p>
           </div>
 
-          {/* ✅ Thank You Message */}
+          {/* Already Signed Up Message */}
           {alreadySignedUp ? (
             <div className="text-center">
               <div className="alert alert-success">
@@ -114,14 +138,10 @@ const Signup = () => {
                   Thank You for Signing Up!
                 </h5>
                 <p className="mb-0">
-                  Your registration has been received. You will be able to log in once
-                  your account is approved by the system admin.
+                  You have already registered from this device. Please wait for admin approval.
                 </p>
               </div>
-              <button
-                className="btn btn-primary mt-3"
-                onClick={() => navigate('/')}
-              >
+              <button className="btn btn-primary mt-3" onClick={() => navigate('/')}>
                 Return to Login
               </button>
             </div>
@@ -129,11 +149,7 @@ const Signup = () => {
             <>
               {/* Alert Message */}
               {message && (
-                <div
-                  className={`alert text-center ${
-                    success ? 'alert-success' : 'alert-danger'
-                  }`}
-                >
+                <div className={`alert text-center ${success ? 'alert-success' : 'alert-danger'}`}>
                   {message}
                 </div>
               )}
@@ -251,8 +267,8 @@ const Signup = () => {
                   <i className="bi bi-info-circle text-primary me-2"></i>Registration Info
                 </h6>
                 <small className="text-muted">
-                  Only the system admin can approve new voter accounts. Please use your
-                  valid institutional email for registration.
+                  Only the system admin can approve new voter accounts. Please use your valid
+                  institutional email for registration.
                 </small>
               </div>
             </>
