@@ -11,6 +11,7 @@ const PositionCandidates = ({ user, onVote }) => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
+  const [electionStatus, setElectionStatus] = useState(null);
 
   const positionsMap = {
     1: { name: 'Chairperson', icon: '👑' },
@@ -24,8 +25,19 @@ const PositionCandidates = ({ user, onVote }) => {
   };
 
   useEffect(() => {
+    loadElectionStatus();
     loadCandidates();
   }, [positionId]);
+
+  const loadElectionStatus = async () => {
+    try {
+      const response = await api.election.status();
+      const data = await response.json();
+      setElectionStatus(data);
+    } catch (error) {
+      console.error('Error loading election status:', error);
+    }
+  };
 
   const loadCandidates = async () => {
     try {
@@ -43,7 +55,11 @@ const PositionCandidates = ({ user, onVote }) => {
   };
 
   const handleCandidateClick = (candidate) => {
-    // Toggle selection
+    if (electionStatus?.status !== 'active') {
+      setMessage('Voting is not currently active.');
+      return;
+    }
+    
     if (selectedCandidate?.id === candidate.id) {
       setSelectedCandidate(null);
     } else {
@@ -52,6 +68,11 @@ const PositionCandidates = ({ user, onVote }) => {
   };
 
   const handleVote = async () => {
+    if (electionStatus?.status !== 'active') {
+      setMessage('Voting is not currently active.');
+      return;
+    }
+
     if (!selectedCandidate) {
       setMessage('Please select a candidate.');
       return;
@@ -66,7 +87,8 @@ const PositionCandidates = ({ user, onVote }) => {
 
       if (data.success) {
         setMessage('Vote recorded successfully!');
-        setTimeout(() => navigate('/voting'), 2000);
+        if (onVote) onVote();
+        setTimeout(() => navigate('/voting'), 1500);
       } else {
         setMessage(data.message || 'Failed to record vote.');
       }
@@ -98,7 +120,17 @@ const PositionCandidates = ({ user, onVote }) => {
               {position?.icon}
             </div>
             <h2 className="card-title">{position?.name}</h2>
-            <p className="text-muted">Select your preferred candidate</p>
+            <p className="text-muted">
+              {electionStatus?.status === 'active' 
+                ? 'Select your preferred candidate' 
+                : 'Viewing candidates (voting not active)'}
+            </p>
+            
+            {electionStatus && (
+              <div className={`alert alert-${electionStatus.status === 'active' ? 'success' : 'warning'} mt-3`}>
+                {electionStatus.message}
+              </div>
+            )}
           </div>
 
           {/* Message */}
@@ -119,9 +151,9 @@ const PositionCandidates = ({ user, onVote }) => {
                 <div
                   className={`card candidate-card ${
                     selectedCandidate?.id === candidate.id ? 'border-primary shadow' : ''
-                  }`}
+                  } ${electionStatus?.status !== 'active' ? 'opacity-75' : ''}`}
                   style={{
-                    cursor: 'pointer',
+                    cursor: electionStatus?.status === 'active' ? 'pointer' : 'default',
                     transition: '0.3s',
                     backgroundColor:
                       selectedCandidate?.id === candidate.id ? '#e7f1ff' : 'white',
@@ -186,7 +218,7 @@ const PositionCandidates = ({ user, onVote }) => {
               ← Back to Voting
             </button>
 
-            {candidates.length > 0 && (
+            {electionStatus?.status === 'active' && candidates.length > 0 && (
               <button
                 className="btn btn-primary"
                 onClick={handleVote}

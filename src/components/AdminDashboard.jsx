@@ -12,7 +12,7 @@ const AdminDashboard = () => {
 
   // User Management
   const [newUser, setNewUser] = useState({ email: '', password: '', name: '' });
-  
+
   // Candidate Management
   const [positions, setPositions] = useState([]);
   const [candidates, setCandidates] = useState([]);
@@ -23,36 +23,55 @@ const AdminDashboard = () => {
 
   // Election Settings
   const [electionSettings, setElectionSettings] = useState({
-    name: 'BUSA Election System',
+    name: '',
     start_at: '',
-    end_at: ''
+    end_at: '',
+    reset_data: false
   });
+
+  // Election Status
+  const [electionStatus, setElectionStatus] = useState(null);
+
+  // Convert local time to UTC ISO string
+  const toUTC = (localDateTime) => {
+    const date = new Date(localDateTime);
+    return date.toISOString();
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
       loadData();
+      loadElectionStatus();
     }
   }, [isAuthenticated]);
 
   const loadData = async () => {
     try {
-      // Load positions
-      const positionsResponse = await api.positions.getAll();
+      const [positionsResponse, candidatesResponse] = await Promise.all([
+        api.positions.getAll(),
+        api.admin.getCandidates('admin', '@System372540')
+      ]);
+      
       const positionsData = await positionsResponse.json();
       setPositions(positionsData);
 
-      // Load candidates for all positions
-      const allCandidates = [];
-      for (const position of positionsData) {
-        const candidatesResponse = await api.positions.getCandidates(position.id);
+      if (candidatesResponse.ok) {
         const candidatesData = await candidatesResponse.json();
-        allCandidates.push(...candidatesData.map(c => ({ ...c, position_name: position.name })));
+        setCandidates(candidatesData.candidates || []);
       }
-      setCandidates(allCandidates);
-
     } catch (error) {
       console.error('Error loading data:', error);
       setMessage('Error loading data');
+    }
+  };
+
+  const loadElectionStatus = async () => {
+    try {
+      const response = await api.election.status();
+      const data = await response.json();
+      setElectionStatus(data);
+    } catch (error) {
+      console.error('Error loading election status:', error);
     }
   };
 
@@ -72,7 +91,7 @@ const AdminDashboard = () => {
       } else {
         setMessage(data.message || 'Login failed');
       }
-    } catch (error) {
+    } catch {
       setMessage('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -94,7 +113,7 @@ const AdminDashboard = () => {
       } else {
         setMessage(data.message || 'Failed to create user');
       }
-    } catch (error) {
+    } catch {
       setMessage('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -113,11 +132,11 @@ const AdminDashboard = () => {
       if (data.success) {
         setMessage('Candidate added successfully');
         setNewCandidate({ position_id: '', name: '', image: '' });
-        loadData(); // Refresh candidates list
+        loadData();
       } else {
         setMessage(data.message || 'Failed to add candidate');
       }
-    } catch (error) {
+    } catch {
       setMessage('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -134,11 +153,11 @@ const AdminDashboard = () => {
 
       if (data.success) {
         setMessage('Candidate deleted successfully');
-        loadData(); // Refresh candidates list
+        loadData();
       } else {
         setMessage(data.message || 'Failed to delete candidate');
       }
-    } catch (error) {
+    } catch {
       setMessage('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -157,11 +176,11 @@ const AdminDashboard = () => {
       if (data.success) {
         setMessage(`Votes adjusted successfully. New total: ${data.votes}`);
         setVoteAdjustment({ candidate_id: '', amount: 0 });
-        loadData(); // Refresh data
+        loadData();
       } else {
         setMessage(data.message || 'Failed to adjust votes');
       }
-    } catch (error) {
+    } catch {
       setMessage('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -174,19 +193,51 @@ const AdminDashboard = () => {
     setMessage('');
 
     try {
-      const response = await api.admin.setElection('admin', '@System372540', electionSettings.name, electionSettings.start_at, electionSettings.end_at);
+      const startUTC = toUTC(electionSettings.start_at);
+      const endUTC = toUTC(electionSettings.end_at);
+
+      const response = await api.admin.setElection(
+        'admin',
+        '@System372540',
+        electionSettings.name,
+        startUTC,
+        endUTC,
+        electionSettings.reset_data
+      );
+
       const data = await response.json();
 
       if (data.success) {
         setMessage('Election settings updated successfully');
+        setElectionSettings({
+          name: '',
+          start_at: '',
+          end_at: '',
+          reset_data: false
+        });
+        loadElectionStatus();
       } else {
         setMessage(data.message || 'Failed to update election settings');
       }
-    } catch (error) {
+    } catch {
       setMessage('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const getElectionStatusBadge = () => {
+    if (!electionStatus) return null;
+    
+    const statusConfig = {
+      'no_election': { class: 'secondary', text: 'No Election' },
+      'pending': { class: 'warning', text: 'Pending' },
+      'active': { class: 'success', text: 'Active' },
+      'ended': { class: 'danger', text: 'Ended' }
+    };
+    
+    const config = statusConfig[electionStatus.status] || statusConfig.no_election;
+    return <span className={`badge bg-${config.class}`}>{config.text}</span>;
   };
 
   if (!isAuthenticated) {
@@ -231,11 +282,7 @@ const AdminDashboard = () => {
                       />
                     </div>
 
-                    <button 
-                      type="submit" 
-                      className="btn btn-primary w-100 py-2"
-                      disabled={loading}
-                    >
+                    <button type="submit" className="btn btn-primary w-100 py-2" disabled={loading}>
                       {loading ? 'Signing in...' : 'Login as Admin'}
                     </button>
                   </form>
@@ -253,11 +300,15 @@ const AdminDashboard = () => {
       <div className="container">
         {/* Header */}
         <div className="d-flex justify-content-between align-items-center mb-4">
-          <h1 className="text-white">Admin Dashboard</h1>
-          <button 
-            className="btn btn-outline-light"
-            onClick={() => setIsAuthenticated(false)}
-          >
+          <div>
+            <h1 className="text-white">Admin Dashboard</h1>
+            {electionStatus && (
+              <div className="text-white-50">
+                Election Status: {getElectionStatusBadge()} - {electionStatus.message}
+              </div>
+            )}
+          </div>
+          <button className="btn btn-outline-light" onClick={() => setIsAuthenticated(false)}>
             Logout
           </button>
         </div>
@@ -270,36 +321,15 @@ const AdminDashboard = () => {
 
         {/* Navigation Tabs */}
         <nav className="nav nav-pills mb-4">
-          <button 
-            className={`nav-link ${activeTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setActiveTab('dashboard')}
-          >
-            Dashboard
-          </button>
-          <button 
-            className={`nav-link ${activeTab === 'users' ? 'active' : ''}`}
-            onClick={() => setActiveTab('users')}
-          >
-            User Management
-          </button>
-          <button 
-            className={`nav-link ${activeTab === 'candidates' ? 'active' : ''}`}
-            onClick={() => setActiveTab('candidates')}
-          >
-            Candidate Management
-          </button>
-          <button 
-            className={`nav-link ${activeTab === 'votes' ? 'active' : ''}`}
-            onClick={() => setActiveTab('votes')}
-          >
-            Vote Adjustment
-          </button>
-          <button 
-            className={`nav-link ${activeTab === 'election' ? 'active' : ''}`}
-            onClick={() => setActiveTab('election')}
-          >
-            Election Settings
-          </button>
+          {['dashboard', 'users', 'candidates', 'votes', 'election'].map(tab => (
+            <button
+              key={tab}
+              className={`nav-link ${activeTab === tab ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1).replace('_', ' ')}
+            </button>
+          ))}
         </nav>
 
         {/* Dashboard Overview */}
@@ -323,36 +353,43 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            {/* ✅ Added Feature: Total Votes Per Candidate */}
             <div className="mt-5">
-              <h4>Total Votes per Candidate</h4>
+              <h4>Current Votes per Candidate</h4>
               <table className="table table-dark table-striped mt-3">
                 <thead>
                   <tr>
                     <th>Candidate Name</th>
                     <th>Position</th>
-                    <th>Total Votes</th>
+                    <th>Votes</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {candidates.map((candidate) => (
+                  {candidates.map(candidate => (
                     <tr key={candidate.id}>
                       <td>{candidate.name}</td>
                       <td>{candidate.position_name}</td>
                       <td>{candidate.votes || 0}</td>
+                      <td>
+                        <button 
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => handleDeleteCandidate(candidate.id)}
+                        >
+                          Delete
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            {/* ✅ End of Added Feature */}
           </div>
         )}
 
         {/* User Management */}
         {activeTab === 'users' && (
           <div className="admin-section">
-            <h3>Create New User</h3>
+            <h3>Create User</h3>
             <form onSubmit={handleCreateUser}>
               <div className="row">
                 <div className="col-md-4">
@@ -362,7 +399,7 @@ const AdminDashboard = () => {
                       type="email"
                       className="form-control"
                       value={newUser.email}
-                      onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                      onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                       required
                     />
                   </div>
@@ -374,24 +411,24 @@ const AdminDashboard = () => {
                       type="password"
                       className="form-control"
                       value={newUser.password}
-                      onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                       required
                     />
                   </div>
                 </div>
                 <div className="col-md-4">
                   <div className="form-group">
-                    <label>Full Name (Optional)</label>
+                    <label>Name (Optional)</label>
                     <input
                       type="text"
                       className="form-control"
                       value={newUser.name}
-                      onChange={(e) => setNewUser({...newUser, name: e.target.value})}
+                      onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
                     />
                   </div>
                 </div>
               </div>
-              <button type="submit" className="btn btn-success" disabled={loading}>
+              <button type="submit" className="btn btn-primary mt-3" disabled={loading}>
                 {loading ? 'Creating...' : 'Create User'}
               </button>
             </form>
@@ -401,8 +438,8 @@ const AdminDashboard = () => {
         {/* Candidate Management */}
         {activeTab === 'candidates' && (
           <div className="admin-section">
-            <h3>Add New Candidate</h3>
-            <form onSubmit={handleAddCandidate} className="mb-4">
+            <h3>Add Candidate</h3>
+            <form onSubmit={handleAddCandidate}>
               <div className="row">
                 <div className="col-md-4">
                   <div className="form-group">
@@ -410,12 +447,14 @@ const AdminDashboard = () => {
                     <select
                       className="form-control"
                       value={newCandidate.position_id}
-                      onChange={(e) => setNewCandidate({...newCandidate, position_id: e.target.value})}
+                      onChange={(e) => setNewCandidate({ ...newCandidate, position_id: e.target.value })}
                       required
                     >
                       <option value="">Select Position</option>
-                      {positions.map(pos => (
-                        <option key={pos.id} value={pos.id}>{pos.name}</option>
+                      {positions.map(position => (
+                        <option key={position.id} value={position.id}>
+                          {position.name}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -427,47 +466,28 @@ const AdminDashboard = () => {
                       type="text"
                       className="form-control"
                       value={newCandidate.name}
-                      onChange={(e) => setNewCandidate({...newCandidate, name: e.target.value})}
+                      onChange={(e) => setNewCandidate({ ...newCandidate, name: e.target.value })}
                       required
                     />
                   </div>
                 </div>
                 <div className="col-md-4">
                   <div className="form-group">
-                    <label>Image Filename (Optional)</label>
+                    <label>Image URL (Optional)</label>
                     <input
                       type="text"
                       className="form-control"
                       value={newCandidate.image}
-                      onChange={(e) => setNewCandidate({...newCandidate, image: e.target.value})}
-                      placeholder="image.jpg"
+                      onChange={(e) => setNewCandidate({ ...newCandidate, image: e.target.value })}
+                      placeholder="filename.jpg"
                     />
                   </div>
                 </div>
               </div>
-              <button type="submit" className="btn btn-success" disabled={loading}>
+              <button type="submit" className="btn btn-primary mt-3" disabled={loading}>
                 {loading ? 'Adding...' : 'Add Candidate'}
               </button>
             </form>
-
-            <h4>Current Candidates</h4>
-            <div className="candidate-list">
-              {candidates.map(candidate => (
-                <div key={candidate.id} className="candidate-item">
-                  <div className="flex-grow-1">
-                    <h6 className="mb-1">{candidate.name}</h6>
-                    <small className="text-muted">{candidate.position_name} • Votes: {candidate.votes || 0}</small>
-                  </div>
-                  <button 
-                    className="btn btn-danger btn-sm"
-                    onClick={() => handleDeleteCandidate(candidate.id)}
-                    disabled={loading}
-                  >
-                    Delete
-                  </button>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 
@@ -475,7 +495,7 @@ const AdminDashboard = () => {
         {activeTab === 'votes' && (
           <div className="admin-section">
             <h3>Adjust Votes</h3>
-            <form onSubmit={handleAdjustVotes} className="mb-4">
+            <form onSubmit={handleAdjustVotes}>
               <div className="row">
                 <div className="col-md-6">
                   <div className="form-group">
@@ -483,7 +503,7 @@ const AdminDashboard = () => {
                     <select
                       className="form-control"
                       value={voteAdjustment.candidate_id}
-                      onChange={(e) => setVoteAdjustment({...voteAdjustment, candidate_id: e.target.value})}
+                      onChange={(e) => setVoteAdjustment({ ...voteAdjustment, candidate_id: e.target.value })}
                       required
                     >
                       <option value="">Select Candidate</option>
@@ -502,16 +522,16 @@ const AdminDashboard = () => {
                       type="number"
                       className="form-control"
                       value={voteAdjustment.amount}
-                      onChange={(e) => setVoteAdjustment({...voteAdjustment, amount: e.target.value})}
+                      onChange={(e) => setVoteAdjustment({ ...voteAdjustment, amount: e.target.value })}
                       required
                     />
                     <small className="form-text text-muted">
-                      Positive number to add votes, negative to subtract
+                      Positive to add votes, negative to remove votes
                     </small>
                   </div>
                 </div>
               </div>
-              <button type="submit" className="btn btn-warning" disabled={loading}>
+              <button type="submit" className="btn btn-primary mt-3" disabled={loading}>
                 {loading ? 'Adjusting...' : 'Adjust Votes'}
               </button>
             </form>
@@ -523,17 +543,18 @@ const AdminDashboard = () => {
           <div className="admin-section">
             <h3>Election Settings</h3>
             <form onSubmit={handleSetElection}>
-              <div className="form-group">
+              <div className="form-group mb-3">
                 <label>Election Name</label>
                 <input
                   type="text"
                   className="form-control"
                   value={electionSettings.name}
-                  onChange={(e) => setElectionSettings({...electionSettings, name: e.target.value})}
+                  onChange={(e) => setElectionSettings({ ...electionSettings, name: e.target.value })}
+                  placeholder="BUSA Election 2025"
                   required
                 />
               </div>
-              <div className="row">
+              <div className="row mb-3">
                 <div className="col-md-6">
                   <div className="form-group">
                     <label>Start Date & Time</label>
@@ -541,7 +562,7 @@ const AdminDashboard = () => {
                       type="datetime-local"
                       className="form-control"
                       value={electionSettings.start_at}
-                      onChange={(e) => setElectionSettings({...electionSettings, start_at: e.target.value})}
+                      onChange={(e) => setElectionSettings({ ...electionSettings, start_at: e.target.value })}
                       required
                     />
                   </div>
@@ -553,11 +574,23 @@ const AdminDashboard = () => {
                       type="datetime-local"
                       className="form-control"
                       value={electionSettings.end_at}
-                      onChange={(e) => setElectionSettings({...electionSettings, end_at: e.target.value})}
+                      onChange={(e) => setElectionSettings({ ...electionSettings, end_at: e.target.value })}
                       required
                     />
                   </div>
                 </div>
+              </div>
+              <div className="form-check mb-3">
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  checked={electionSettings.reset_data}
+                  onChange={(e) => setElectionSettings({ ...electionSettings, reset_data: e.target.checked })}
+                  id="resetData"
+                />
+                <label className="form-check-label" htmlFor="resetData">
+                  Reset all votes and start fresh election
+                </label>
               </div>
               <button type="submit" className="btn btn-primary" disabled={loading}>
                 {loading ? 'Saving...' : 'Save Election Settings'}
