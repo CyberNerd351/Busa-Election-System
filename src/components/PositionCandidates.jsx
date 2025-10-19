@@ -2,6 +2,29 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils';
 
+// Convert UTC to Kenyan Time (EAT - East Africa Time, UTC+3)
+const convertToKenyanTime = (utcDateString) => {
+  if (!utcDateString) return null;
+  
+  const date = new Date(utcDateString);
+  // Kenya is UTC+3, so add 3 hours
+  const kenyanTime = new Date(date.getTime() + (3 * 60 * 60 * 1000));
+  return kenyanTime;
+};
+
+const formatKenyanDateTime = (date) => {
+  if (!date) return 'N/A';
+  
+  return date.toLocaleString('en-KE', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Africa/Nairobi'
+  });
+};
+
 const PositionCandidates = ({ user, onVote }) => {
   const { positionId } = useParams();
   const navigate = useNavigate();
@@ -12,6 +35,7 @@ const PositionCandidates = ({ user, onVote }) => {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [electionStatus, setElectionStatus] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const positionsMap = {
     1: { name: 'Chairperson', icon: '👑' },
@@ -27,13 +51,30 @@ const PositionCandidates = ({ user, onVote }) => {
   useEffect(() => {
     loadElectionStatus();
     loadCandidates();
+    
+    // Set up periodic refresh every 30 seconds
+    const statusInterval = setInterval(() => {
+      loadElectionStatus();
+    }, 30000);
+    
+    return () => clearInterval(statusInterval);
   }, [positionId]);
 
   const loadElectionStatus = async () => {
     try {
       const response = await api.election.status();
       const data = await response.json();
+      
+      // Convert UTC times to Kenyan time
+      if (data.start_at) {
+        data.start_at_kenyan = convertToKenyanTime(data.start_at);
+      }
+      if (data.end_at) {
+        data.end_at_kenyan = convertToKenyanTime(data.end_at);
+      }
+      
       setElectionStatus(data);
+      setLastUpdated(new Date());
     } catch (error) {
       console.error('Error loading election status:', error);
     }
@@ -100,12 +141,30 @@ const PositionCandidates = ({ user, onVote }) => {
     }
   };
 
+  const getElectionStatusMessage = () => {
+    if (!electionStatus) return '';
+    
+    switch (electionStatus.status) {
+      case 'active':
+        return `Election active - Ends: ${formatKenyanDateTime(electionStatus.end_at_kenyan)} (EAT)`;
+      case 'pending':
+        return `Election starts: ${formatKenyanDateTime(electionStatus.start_at_kenyan)} (EAT)`;
+      case 'ended':
+        return 'Election has ended';
+      case 'no_election':
+        return 'No active election';
+      default:
+        return '';
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mt-4 text-center">
         <div className="spinner-border text-primary" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
+        <p className="mt-2">Loading candidates...</p>
       </div>
     );
   }
@@ -128,7 +187,12 @@ const PositionCandidates = ({ user, onVote }) => {
             
             {electionStatus && (
               <div className={`alert alert-${electionStatus.status === 'active' ? 'success' : 'warning'} mt-3`}>
-                {electionStatus.message}
+                <strong>{electionStatus.status.toUpperCase()}:</strong> {getElectionStatusMessage()}
+                {lastUpdated && (
+                  <small className="d-block mt-1 text-muted">
+                    Last updated: {lastUpdated.toLocaleTimeString()}
+                  </small>
+                )}
               </div>
             )}
           </div>
@@ -234,6 +298,13 @@ const PositionCandidates = ({ user, onVote }) => {
                 )}
               </button>
             )}
+          </div>
+
+          {/* Auto-refresh indicator */}
+          <div className="text-center mt-3">
+            <small className="text-muted">
+              ⚡ Status auto-updates every 30 seconds
+            </small>
           </div>
         </div>
       </div>

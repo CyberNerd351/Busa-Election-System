@@ -14,12 +14,36 @@ const positionsList = [
   { id: 8, name: 'Spokesperson', icon: '🎤' }
 ];
 
+// Convert UTC to Kenyan Time (EAT - East Africa Time, UTC+3)
+const convertToKenyanTime = (utcDateString) => {
+  if (!utcDateString) return null;
+  
+  const date = new Date(utcDateString);
+  // Kenya is UTC+3, so add 3 hours
+  const kenyanTime = new Date(date.getTime() + (3 * 60 * 60 * 1000));
+  return kenyanTime;
+};
+
+const formatKenyanDateTime = (date) => {
+  if (!date) return 'N/A';
+  
+  return date.toLocaleString('en-KE', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Africa/Nairobi'
+  });
+};
+
 const Voting = ({ user }) => {
   const [positions, setPositions] = useState([]);
   const [userVotes, setUserVotes] = useState({});
   const [electionStatus, setElectionStatus] = useState(null);
   const [timeRemaining, setTimeRemaining] = useState('');
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,6 +52,13 @@ const Voting = ({ user }) => {
     } else {
       loadElectionStatus();
       loadUserVotes();
+      
+      // Set up periodic refresh every 30 seconds to catch election status changes
+      const statusInterval = setInterval(() => {
+        loadElectionStatus();
+      }, 30000);
+      
+      return () => clearInterval(statusInterval);
     }
   }, [user, navigate]);
 
@@ -49,12 +80,13 @@ const Voting = ({ user }) => {
 
   const updateTimeRemaining = () => {
     if (electionStatus?.status === 'active' && electionStatus.end_at) {
-      const timeInfo = getTimeRemaining(electionStatus.end_at);
+      const kenyanEndTime = convertToKenyanTime(electionStatus.end_at);
+      const timeInfo = getTimeRemaining(kenyanEndTime);
       setTimeRemaining(timeInfo.message);
       
       // If election has ended, reload election status
       if (timeInfo.ended) {
-        loadElectionStatus();
+        setTimeout(() => loadElectionStatus(), 1000);
       }
     }
   };
@@ -63,11 +95,21 @@ const Voting = ({ user }) => {
     try {
       const response = await api.election.status();
       const data = await response.json();
+      
+      // Convert UTC times to Kenyan time
+      if (data.start_at) {
+        data.start_at_kenyan = convertToKenyanTime(data.start_at);
+      }
+      if (data.end_at) {
+        data.end_at_kenyan = convertToKenyanTime(data.end_at);
+      }
+      
       setElectionStatus(data);
+      setLastUpdated(new Date());
       
       // Set initial time remaining for active elections
-      if (data.status === 'active' && data.end_at) {
-        const timeInfo = getTimeRemaining(data.end_at);
+      if (data.status === 'active' && data.end_at_kenyan) {
+        const timeInfo = getTimeRemaining(data.end_at_kenyan);
         setTimeRemaining(timeInfo.message);
       }
     } catch (error) {
@@ -115,23 +157,33 @@ const Voting = ({ user }) => {
           <div className="alert alert-info text-center">
             <h5>📋 Election Positions</h5>
             <p className="mb-0">No active election scheduled. Here are the available positions.</p>
+            {lastUpdated && (
+              <small className="text-muted">
+                Last updated: {lastUpdated.toLocaleTimeString()}
+              </small>
+            )}
           </div>
         );
       
       case 'pending':
-        const startTime = new Date(electionStatus.start_at);
+        const kenyanStartTime = electionStatus.start_at_kenyan;
         const now = new Date();
-        const timeUntilStart = startTime - now;
+        const timeUntilStart = kenyanStartTime - now;
         
         return (
           <div className="alert alert-warning text-center">
             <h5>⏰ Election Coming Soon</h5>
             <p className="mb-1">
-              Election starts: {startTime.toLocaleString()}
+              Election starts: {formatKenyanDateTime(kenyanStartTime)} (EAT)
             </p>
             <p className="mb-0 fw-bold">
-              Starts in: {formatTimeRemaining(electionStatus.start_at)}
+              Starts in: {formatTimeRemaining(kenyanStartTime)}
             </p>
+            {lastUpdated && (
+              <small className="text-muted d-block mt-1">
+                Last updated: {lastUpdated.toLocaleTimeString()}
+              </small>
+            )}
           </div>
         );
       
@@ -139,9 +191,17 @@ const Voting = ({ user }) => {
         return (
           <div className="alert alert-success text-center">
             <h5>🗳️ Election in Progress - Vote Now!</h5>
-            <p className="mb-0 fw-bold fs-5">
+            <p className="mb-1 fw-bold fs-5">
               Time remaining: {timeRemaining}
             </p>
+            <p className="mb-0 small">
+              Ends: {formatKenyanDateTime(electionStatus.end_at_kenyan)} (EAT)
+            </p>
+            {lastUpdated && (
+              <small className="text-muted d-block mt-1">
+                Last updated: {lastUpdated.toLocaleTimeString()}
+              </small>
+            )}
           </div>
         );
       
@@ -152,6 +212,11 @@ const Voting = ({ user }) => {
             <p className="mb-0">
               Voting has concluded. Check results for the outcome.
             </p>
+            {lastUpdated && (
+              <small className="text-muted d-block mt-1">
+                Last updated: {lastUpdated.toLocaleTimeString()}
+              </small>
+            )}
           </div>
         );
       
@@ -250,7 +315,6 @@ const Voting = ({ user }) => {
                   <h5>🎉 All Positions Voted!</h5>
                   <p className="mb-0">
                     Thank you for participating in the BUSA Election. 
-                    You can still change your votes until the election ends.
                   </p>
                 </div>
               </div>
@@ -264,27 +328,15 @@ const Voting = ({ user }) => {
               >
                 View Results
               </button>
-              {electionStatus?.status === 'active' && (
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => {
-                    loadUserVotes();
-                    loadElectionStatus();
-                  }}
-                >
-                  Refresh Status
-                </button>
-              )}
             </div>
 
-            {/* Real-time countdown indicator */}
-            {electionStatus?.status === 'active' && (
-              <div className="text-center mt-3">
-                <small className="text-muted">
-                  ⚡ Time updates in real-time
-                </small>
-              </div>
-            )}
+            {/* Auto-refresh indicator */}
+            <div className="text-center mt-3">
+              <small className="text-muted">
+                ⚡ Status auto-updates every 30 seconds
+                {lastUpdated && ` • Last update: ${lastUpdated.toLocaleTimeString()}`}
+              </small>
+            </div>
           </div>
         </div>
       </div>
