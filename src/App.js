@@ -11,7 +11,7 @@ import FAQ from './components/FAQ';
 import PositionCandidates from './components/PositionCandidates';
 import Contact from './components/Contact';
 import Logout from './components/Logout';
-import Signup from './components/Signup';
+// import Signup from './components/Signup';
 
 function AppContent() {
   const [user, setUser] = useState(null);
@@ -52,7 +52,7 @@ function AppContent() {
           <Route path="/position/:positionId" element={<PositionCandidates user={user} />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/logout" element={<Logout />} />
-          <Route path="/signup" element={<Signup />} />
+          // <Route path="/signup" element={<Signup />} />
         </Routes>
       </div>
     </>
