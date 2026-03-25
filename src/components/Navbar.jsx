@@ -27,7 +27,7 @@ const Navbar = ({ user, onLogout }) => {
     <nav className="navbar navbar-expand-lg navbar-dark bg-dark shadow">
       <div className="container">
         <Link className="navbar-brand fw-bold" to="/home">
-          🗳️ BUSA Election System
+          🗳️ UUCSAA GENERAL ELECTIONS
         </Link>
 
         {/* Toggler Button */}

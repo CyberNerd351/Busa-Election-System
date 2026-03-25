@@ -550,7 +550,7 @@ const AdminDashboard = () => {
                   className="form-control"
                   value={electionSettings.name}
                   onChange={(e) => setElectionSettings({ ...electionSettings, name: e.target.value })}
-                  placeholder="BUSA Election 2025"
+                  placeholder="2026 UUCSA GENERAL ELECTIONS"
                   required
                 />
               </div>
