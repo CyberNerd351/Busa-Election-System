@@ -52,7 +52,7 @@ const Login = ({ onLogin }) => {
             >
               🗳️
             </div>
-            <h3 className="fw-bold text-dark mb-1">UUCSA GENERAL ELECTIONS</h3>
+            <h3 className="fw-bold text-dark mb-1">BUSA ELECTION SYSTEM</h3>
             <p className="text-muted mb-0">Sign in to cast your vote securely</p>
           </div>
 

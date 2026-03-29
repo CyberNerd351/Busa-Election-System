@@ -17,7 +17,7 @@ const Home = ({ user, electionStatus, timeRemaining }) => {
       <div className="container">
         {/* Welcome Section */}
         <div className="welcome-section text-center">
-          <h1 className="welcome-title">Welcome to 2026 UUCSA GENERAL ELECTIONS</h1>
+          <h1 className="welcome-title">BUSA ELECTION SYSTEM</h1>
           <p className="welcome-subtitle">
             {user
               ? `Hello ${user.name || user.email}, exercise your democratic right to vote!`
