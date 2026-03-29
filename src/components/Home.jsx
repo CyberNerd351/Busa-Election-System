@@ -51,7 +51,7 @@ const Home = ({ user, electionStatus, timeRemaining }) => {
                   onClick={() => navigate('/')}
                   disabled
                 >
-                  🔒 Login Required
+                  🔒 Login Required 
                 </button>
               )}
             </div>
